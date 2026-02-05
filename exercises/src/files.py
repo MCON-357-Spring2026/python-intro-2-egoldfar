@@ -38,7 +38,9 @@ Example:
 """
 
 def write_lines(filepath: str, lines: list) -> None:
-    # TODO: Implement this function
+    with open(filepath, "w") as writing:
+        for line in lines:
+            writing.write(line + "\n")
     pass
 
 
@@ -62,9 +64,12 @@ Example:
 """
 
 def read_lines(filepath: str) -> list:
-    # TODO: Implement this function
+    with open(filepath, "r") as reading:
+        list = reading.readlines()
+    list = [line.strip() for line in list]
+    return list
     # Hint: Use strip() on each line to remove newlines
-    pass
+
 
 
 # =============================================================================
@@ -89,7 +94,8 @@ Example:
 """
 
 def append_line(filepath: str, line: str) -> None:
-    # TODO: Implement this function
+    with open(filepath, "a") as appending:
+        appending.write(line + "\n")
     # Hint: Use "a" mode for append
     pass
 
@@ -114,9 +120,12 @@ Example:
 """
 
 def count_words(filepath: str) -> int:
-    # TODO: Implement this function
+    with open(filepath, "r") as reading:
+        content = reading.read()
+    words = content.split()
+    total_words = len(words)
     # Hint: Read the file, split on whitespace, count the parts
-    pass
+    return total_words
 
 
 # =============================================================================
@@ -141,7 +150,8 @@ Example:
 """
 
 def save_json(filepath: str, data: dict) -> None:
-    # TODO: Implement this function
+    with open(filepath, "w") as writing:
+        json.dump(data, writing, indent=2)
     pass
 
 
@@ -163,8 +173,8 @@ Example:
 """
 
 def load_json(filepath: str) -> dict:
-    # TODO: Implement this function
-    pass
+    with open(filepath, "r") as reading:
+        return json.load(reading)
 
 
 # =============================================================================
@@ -189,7 +199,14 @@ Example:
 """
 
 def update_json(filepath: str, **updates) -> None:
-    # TODO: Implement this function
+    if not updates:
+        return
+    with open(filepath, "r") as reading:
+        data = json.load(reading)
+    for key, value in updates.items():
+        data[key] = value
+    with open(filepath, "w") as writing:
+        json.dump(data, writing, indent=2)
     pass
 
 
@@ -226,35 +243,49 @@ Example:
 class TodoList:
     def __init__(self, filepath: str):
         self.filepath = filepath
-        # TODO: Load existing todos from file, or initialize empty list
         # Hint: Use try/except to handle file not existing
-        self.todos = []
+        try:
+            with open(filepath, "r") as reading:
+                self.todos = json.load(reading)
+        except FileNotFoundError:
+            self.todos = []
 
     def _save(self) -> None:
         """Helper method to save todos to file."""
-        # TODO: Save self.todos to self.filepath as JSON
+        with open(self.filepath, "w") as writing:
+            json.dump(self.todos, writing, indent=2)
         pass
 
     def _next_id(self) -> int:
         """Helper method to get the next available ID."""
-        # TODO: Return max id + 1, or 1 if no todos exist
-        pass
+        if len(self.todos) == 0:
+            return 1
+        return self.todos[-1]["id"] + 1
+
 
     def add(self, task: str) -> int:
-        # TODO: Create new todo, add to list, save, return id
-        pass
+        id = self._next_id()
+        self.todos.append({"id": id, "task": task, "done": False})
+        self._save()
+        return id
+
 
     def complete(self, todo_id: int) -> bool:
-        # TODO: Find todo by id, set done=True, save, return True
         # Return False if not found
-        pass
+        if len(self.todos) < todo_id:
+            return False
+        self.todos[todo_id-1]["done"] = True
+        self._save()
+        return True
 
     def get_pending(self) -> list:
-        # TODO: Return todos where done=False
-        pass
+        pending = []
+        for task in self.todos:
+            if not task["done"]:
+                pending.append(task)
+        return pending
 
     def get_all(self) -> list:
-        # TODO: Return all todos
-        pass
+        return self.todos
 
 

@@ -32,8 +32,10 @@ def format_date(dt: datetime = None) -> str:
         format_date(datetime(2024, 1, 15)) -> "2024-01-15"
         format_date() -> "2024-02-04" (today's date)
     """
-    # TODO: Implement this function
-    pass
+    if dt is None:
+        dt = datetime.now()
+    return dt.strftime("%Y-%m-%d")
+
 
 
 def generate_id(prefix: str, existing_ids: list) -> str:
@@ -51,9 +53,13 @@ def generate_id(prefix: str, existing_ids: list) -> str:
         generate_id("BOOK", ["BOOK_0001", "BOOK_0002"]) -> "BOOK_0003"
         generate_id("USER", []) -> "USER_0001"
     """
-    # TODO: Implement this function
     # Hint: Find the highest existing number and add 1
-    pass
+    max_id = 1
+    for existing_id in existing_ids:
+        id = int(existing_id.split("_")[1])
+        if id >= max_id:
+            max_id = id + 1
+    return f"{prefix}_{max_id:04d}"
 
 
 def search_items(items: list, **criteria) -> list:
@@ -77,9 +83,33 @@ def search_items(items: list, **criteria) -> list:
         search_items(books, author="Smith") -> [first two books]
         search_items(books, title="Python 101") -> [first book]
     """
-    # TODO: Implement this function
     # Hint: For each item, check if ALL criteria match
-    pass
+    results = []
+
+    for item in items:
+        match = True
+        for field, value in criteria.items():
+            if field not in item:
+                match = False
+                break
+
+            item_val = item[field]
+
+            # Case‑insensitive comparison for strings
+            if isinstance(item_val, str) and isinstance(value, str):
+                if item_val.lower() != value.lower():
+                    match = False
+                    break
+            else:
+                if item_val != value:
+                    match = False
+                    break
+
+        if match:
+            results.append(item)
+
+    return results
+
 
 
 # =============================================================================
@@ -109,22 +139,24 @@ class Book:
     GENRES = ["Fiction", "Non-Fiction", "Science", "History", "Technology"]
 
     def __init__(self, book_id: str, title: str, author: str, genre: str, available: bool = True):
-        # TODO: Initialize attributes
-        # TODO: Validate that genre is in GENRES, raise ValueError if not
+        if genre not in Book.GENRES:
+            raise ValueError(f"Genre {genre} is not valid")
+        self.book_id = book_id
+        self.title = title
+        self.author = author
+        self.genre = genre
+        self.available = available
         pass
 
     def to_dict(self) -> dict:
-        # TODO: Return dictionary with all attributes
-        pass
+        return {'book_id': self.book_id, 'title': self.title, 'author': self.author, 'genre': self.genre, 'available': self.available}
 
     @classmethod
     def from_dict(cls, data: dict) -> "Book":
-        # TODO: Create and return a Book instance from dictionary
-        pass
+        return cls(data["book_id"], data["title"], data["author"], data["genre"], data["available"])
 
     def __str__(self) -> str:
-        # TODO: Return string like "[BOOK_0001] Python 101 by Smith (Technology) - Available"
-        pass
+        return f"[{self.book_id}] {self.title} by {self.author} ({self.genre}) - {self.available}"
 
 
 # =============================================================================
@@ -151,32 +183,45 @@ class Borrower:
     MAX_BOOKS = 3  # Maximum books a borrower can have at once
 
     def __init__(self, borrower_id: str, name: str, email: str, borrowed_books: list = None):
-        # TODO: Initialize attributes (use empty list if borrowed_books is None)
+        self.borrower_id = borrower_id
+        self.name = name
+        self.email = email
+        if borrowed_books is None:
+            self.borrowed_books = []
+        else:
+            self.borrowed_books = borrowed_books
         pass
 
     def can_borrow(self) -> bool:
         """Check if borrower can borrow more books."""
-        # TODO: Return True if len(borrowed_books) < MAX_BOOKS
-        pass
+        return len(self.borrowed_books) < Borrower.MAX_BOOKS
 
     def borrow_book(self, book_id: str) -> bool:
-        """Add book to borrowed list. Return False if at max limit."""
-        # TODO: Implement this method
-        pass
+        if self.can_borrow():
+            self.borrowed_books.append(book_id)
+            return True
+        return False
 
     def return_book(self, book_id: str) -> bool:
         """Remove book from borrowed list. Return False if not found."""
-        # TODO: Implement this method
-        pass
+        for book in self.borrowed_books:
+            if book_id == book:
+                self.borrowed_books.remove(book)
+                return True
+        return False
+
 
     def to_dict(self) -> dict:
-        # TODO: Return dictionary with all attributes
-        pass
+        return {
+            "borrower_id": self.borrower_id,
+            "name": self.name,
+            "email": self.email,
+            "borrowed_books": self.borrowed_books
+        }
 
     @classmethod
     def from_dict(cls, data: dict) -> "Borrower":
-        # TODO: Create and return a Borrower instance from dictionary
-        pass
+        return cls(data["borrower_id"], data["name"], data["email"], data["borrowed_books"])
 
 
 # =============================================================================
@@ -213,82 +258,161 @@ class Library:
         self.borrowers = {}
         self.books_file = os.path.join(data_dir, "library_books.json")
         self.borrowers_file = os.path.join(data_dir, "library_borrowers.json")
-        # TODO: Call self.load() to load existing data
+        self.load()
 
     def load(self) -> None:
         """Load books and borrowers from JSON files."""
-        # TODO: Load books from self.books_file
-        # TODO: Load borrowers from self.borrowers_file
         # Hint: Use try/except to handle files not existing
-        pass
+        try:
+            with open(self.books_file, "r") as read_books:
+                books = json.load(read_books)
+                for book_id, book_data in books.items():
+                    self.books[book_id] = Book.from_dict(book_data)
+        except FileNotFoundError:
+            self.books = {}
+        try:
+            with open(self.borrowers_file, "r") as read_borrowers:
+                borrowers = json.load(read_borrowers)
+                for borrower_id, borrower_data in borrowers.items():
+                    self.borrowers[borrower_id] = Borrower.from_dict(borrower_data)
+        except FileNotFoundError:
+            self.borrowers = {}
+        return
 
     def save(self) -> None:
         """Save books and borrowers to JSON files."""
-        # TODO: Save self.books to self.books_file
-        # TODO: Save self.borrowers to self.borrowers_file
         # Hint: Convert Book/Borrower objects to dicts using to_dict()
-        pass
+        with open(self.books_file, "w") as write_books:
+            books = {}
+            for book_id, book in self.books.items():
+                books[book_id] = book.to_dict()
+            json.dump(books, write_books, indent=2)
+        with open(self.borrowers_file, "w") as write_borrowers:
+            borrowers = {}
+            for borrower_id, borrower in self.borrowers.items():
+                borrowers[borrower_id] = borrower.to_dict()
+            json.dump(borrowers, write_borrowers, indent=2)
+        return
 
     def add_book(self, title: str, author: str, genre: str) -> Book:
         """Add a new book to the library."""
-        # TODO: Generate new book_id using generate_id
-        # TODO: Create Book, add to self.books, save, and return
-        pass
+        ids = []
+        for book in self.books:
+            ids.append(book)
+        new_id = generate_id('BOOK', ids)
+        new_book = Book(new_id, title, author, genre)
+        self.books[new_id] = new_book
+        self.save()
+        return new_book
 
     def add_borrower(self, name: str, email: str) -> Borrower:
         """Register a new borrower."""
-        # TODO: Generate new borrower_id, create Borrower, add to self.borrowers, save, return
-        pass
+        ids = []
+        for borrower in self.borrowers:
+            ids.append(borrower)
+        new_id = generate_id('BORROWER', ids)
+        borrower = Borrower(new_id, name, email)
+        self.borrowers[new_id] = borrower
+        self.save()
+        return borrower
 
     def checkout_book(self, book_id: str, borrower_id: str) -> bool:
         """
         Borrower checks out a book.
         Returns False if book unavailable, borrower not found, or at max limit.
         """
-        # TODO: Validate book exists and is available
-        # TODO: Validate borrower exists and can borrow
-        # TODO: Update book.available, borrower.borrowed_books
-        # TODO: Save and return True
-        pass
+        wanted_book =  None
+        if self.books[book_id] and self.books[book_id].available:
+           wanted_book = self.books[book_id]
+        if wanted_book is None:
+            return False
+        wanted_borrower = None
+        if self.borrowers[borrower_id] and self.borrowers[borrower_id].can_borrow():
+                wanted_borrower = self.borrowers[borrower_id]
+        if wanted_borrower is None:
+            return False
+        wanted_book.available = False
+        wanted_borrower.borrow_book(wanted_book.book_id)
+        self.save()
+        return True
 
     def return_book(self, book_id: str, borrower_id: str) -> bool:
         """
         Borrower returns a book.
         Returns False if book/borrower not found or book wasn't borrowed by this person.
         """
-        # TODO: Validate book and borrower exist
-        # TODO: Validate book is in borrower's borrowed_books
-        # TODO: Update book.available, remove from borrowed_books
-        # TODO: Save and return True
-        pass
+        wanted_book =  None
+        if self.books[book_id]:
+           wanted_book = self.books[book_id]
+        if wanted_book is None:
+            return False
+        wanted_borrower = None
+        if self.borrowers[borrower_id] and book_id in self.borrowers[borrower_id].borrowed_books:
+                wanted_borrower = self.borrowers[borrower_id]
+        if wanted_borrower is None:
+            return False
+        wanted_book.available = True
+        wanted_borrower.return_book(wanted_book.book_id)
+        return True
 
     def search_books(self, **criteria) -> list:
         """Search books by any criteria (title, author, genre, available)."""
-        # TODO: Use search_items helper function
         # Hint: Convert self.books.values() to list of dicts first
-        pass
+        books = []
+        for book, book_data in self.books.items():
+            books.append(book_data.to_dict())
+        return search_items(books, **criteria)
+
 
     def get_available_books(self) -> list:
         """Get list of all available books."""
-        # TODO: Return books where available=True
-        pass
+        available_books = []
+        for book in self.books.values():
+            if book.available:
+                available_books.append(book)
+        return available_books
 
     def get_borrower_books(self, borrower_id: str) -> list:
         """Get list of books currently borrowed by a borrower."""
-        # TODO: Get borrower, return list of Book objects for their borrowed_books
-        pass
+        borrower = self.borrowers[borrower_id]
+        if borrower is None:
+            return []
+        if len(borrower.borrowed_books) == 0:
+            return []
+        borrower_books = []
+        for book in borrower.borrowed_books:
+            borrower_books.append(self.books[book])
+        return borrower_books
 
     def get_statistics(self) -> dict:
         """
         Return library statistics.
         Uses the concepts of dict comprehension and aggregation.
         """
-        # TODO: Return dict with:
         # - total_books: total number of books
         # - available_books: number of available books
         # - checked_out: number of checked out books
         # - total_borrowers: number of borrowers
         # - books_by_genre: dict of genre -> count
-        pass
+        stats = {}
+
+        stats["total_books"] = len(self.books)
+        stats["total_borrowers"] = len(self.borrowers)
+        checked_out = 0
+        available = 0
+        books_by_genre = {}
+        for book in self.books.values():
+            if book.available:
+                available += 1
+            else:
+                checked_out += 1
+            if book.genre in books_by_genre:
+                books_by_genre[book.genre] += 1
+            else:
+                books_by_genre[book.genre] = 1
+        stats["checked_out"] = checked_out
+        stats["available"] = available
+        stats["books_by_genre"] = books_by_genre
+        return stats
 
 
